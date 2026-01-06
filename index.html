@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatbot Anniversaire Stylé</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to bottom, #1a1a1a, #0d0d0d);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 400px;
+      height: 90vh;
+      background: #2d2d2d;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .message {
+      display: flex;
+      align-items: flex-end;
+      max-width: 80%;
+      padding: 10px 15px;
+      border-radius: 20px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease-in;
+      word-wrap: break-word;
+    }
+    .user {
+      margin-left: auto;
+      background-color: #0066cc;
+      color: #fff;
+      border-bottom-right-radius: 0;
+    }
+    .bot {
+      margin-right: auto;
+      background-color: #3a3a3a;
+      color: #e0e0e0;
+      border-bottom-left-radius: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bot-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background-color: #555;
+    }
+    .input-area {
+      display: flex;
+      border-top: 1px solid #444;
+      background: #1f1f1f;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      background: #1f1f1f;
+      color: #e0e0e0;
+    }
+    input::placeholder {
+      color: #888;
+    }
+    button {
+      padding: 12px 18px;
+      border: none;
+      background: #0066cc;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #004a99;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Scrollbar personnalisée pour dark mode */
+    .messages::-webkit-scrollbar {
+      width: 8px;
+    }
+    .messages::-webkit-scrollbar-track {
+      background: #1f1f1f;
+    }
+    .messages::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 4px;
+    }
+    .messages::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input id="userInput" type="text" placeholder="Écris un message..." />
+      <button onclick="sendMessage()">Envoyer</button>
+    </div>
+  </div>
+  
+  <script>
+    // Mémoire du dernier type de réponse du bot
+    let lastBotCategory = null;
+
+    const selectionMessage = "Bonjour ! Pose-moi une question sur l'anniversaire : *Où*, *Quand*, *Comment venir*, *Programme*. Ou demande-moi autre chose !";
+
+    const infoResponses = {
+      'où': "La maison se trouve à Villiers-Saint-Benoît mais on n'a toujours pas l'adresse exacte.",
+      'quand': "Du vendredi 06 février 2026 à 18h au dimanche 08 février 2026 à 18h.",
+      'comment venir': "Inscrivez-vous sur le Google Sheet prévu à cet effet ! Vous trouverez sûrement quelqu'un pour vous emmener en voiture. Sinon, prenez le train jusqu'à Joigny (30 min du lieu). Quelqu'un viendra peut-être vous chercher...",
+      'programme': "Le programme sera annoncé plus tard — ou improvisé sur le moment, soyons honnêtes."
+    };
+
+    // Réponses aux questions typiques
+    const questionsTypiques = {
+      'salut': ["Salut ! Prêt pour l'anniversaire ?", "Hey ! Besoin d'infos sur la fête ?", "Coucou ! Comment je peux t'aider ?"],
+      'bonjour': ["Bonjour ! Tu veux des infos sur l'anniversaire ?", "Hello ! Besoin de quelque chose ?", "Salut ! Je t'écoute !"],
+      'hello': ["Hello ! Prêt à faire la fête ?", "Hey ! Quoi de neuf ?", "Yo ! Comment ça va ?"],
+      'ça va': ["Ça va super, je suis un bot donc pas de soucis existentiels ! Et toi ?", "Tranquille, j'attends l'anniversaire ! Et toi ?", "Nickel, toujours prêt à aider ! Toi ça va ?"],
+      'ca va': ["Ça va super, je suis un bot donc pas de soucis existentiels ! Et toi ?", "Tranquille, j'attends l'anniversaire ! Et toi ?", "Nickel, toujours prêt à aider ! Toi ça va ?"],
+      'comment ça va': ["Ça roule ! Je suis juste un bot mais je me sens bien. Et toi ?", "Super bien ! Toujours là pour toi. Comment tu vas ?", "Tranquille ! Besoin de quelque chose ?"],
+      'comment ca va': ["Ça roule ! Je suis juste un bot mais je me sens bien. Et toi ?", "Super bien ! Toujours là pour toi. Comment tu vas ?", "Tranquille ! Besoin de quelque chose ?"],
+      'quoi de neuf': ["Pas grand-chose, j'attends l'anniversaire ! Et toi ?", "Rien de spécial, je suis un bot. Besoin d'infos ?", "Tranquille ! Tu cherches des infos sur la fête ?"],
+      'qui es-tu': ["Je suis le bot de l'anniversaire de Chris ! Pose-moi des questions.", "Un chatbot créé pour t'aider avec l'anniversaire !", "Le meilleur bot d'anniversaire du monde (modestie, quand tu nous tiens)."],
+      'qui es tu': ["Je suis le bot de l'anniversaire de Chris ! Pose-moi des questions.", "Un chatbot créé pour t'aider avec l'anniversaire !", "Le meilleur bot d'anniversaire du monde (modestie, quand tu nous tiens)."],
+      'c\'est quoi': ["C'est un chatbot pour l'anniversaire ! Demande-moi ce que tu veux savoir.", "Un bot super stylé pour t'aider avec la fête !", "Ton assistant virtuel pour l'anniversaire de Chris !"],
+      'aide': ["Demande-moi : *Où*, *Quand*, *Comment venir*, *Programme*. Ou écris *Avis*, *Histoire*, *Encouragement*, *Réaliste*, ou *Moi* !", "Je peux répondre à plein de trucs ! Essaie *Où*, *Quand*, *Programme*, ou même *Histoire* pour une anecdote !", "Pose-moi des questions sur l'anniversaire, ou demande des trucs random !"],
+      'lol': ["😂", "Mdr !", "Ahah content que ça te fasse rire !"],
+      'mdr': ["😂", "Ahah !", "Content que tu rigoles !"],
+      'ok': ["Ok cool !", "👍", "Nickel !"],
+      'd\'accord': ["Parfait !", "Super !", "👌"],
+      'daccord': ["Parfait !", "Super !", "👌"],
+      'wow': ["Wow toi-même ! 🤩", "Ouais c'est incroyable hein !", "Je sais, c'est impressionnant !"],
+      'super': ["Content que ça te plaise ! 🎉", "Ouais c'est cool hein !", "Grave ! 😄"],
+      'génial': ["Je sais ! 😎", "Heureux que tu trouves ça génial !", "Carrément ! 🔥"],
+      'genial': ["Je sais ! 😎", "Heureux que tu trouves ça génial !", "Carrément ! 🔥"],
+      'cool': ["Trop cool ! 😎", "Ouais c'est stylé !", "Content que ça te plaise !"],
+      'stylé': ["Merci, je fais de mon mieux ! 💅", "Stylé toi-même !", "Trop sympa ! 😄"],
+      'style': ["Merci, je fais de mon mieux ! 💅", "Stylé toi-même !", "Trop sympa ! 😄"],
+      'incroyable': ["Je sais, c'est dingue ! 🤯", "Carrément incroyable !", "N'est-ce pas ? 😮"],
+      'parfait': ["Exactement ! 👌", "Parfait alors !", "Nickel ! ✨"],
+      'excellent': ["Merci ! 🌟", "Content que ça te plaise !", "Excellent toi-même !"],
+      'top': ["Top moumoute ! 🔝", "Ouais c'est top !", "Merci ! 😊"],
+      'bravo': ["Merci beaucoup ! 🎊", "Trop gentil !", "Ça fait plaisir ! 😊"],
+      'bien': ["Cool ! 👍", "Tant mieux !", "Nickel alors !"],
+      'nice': ["Nice ! 😎", "Ouais ! 🤙", "Trop bien !"],
+      'sympa': ["Merci c'est gentil ! 😊", "Toi aussi tu es sympa !", "Content que ça te plaise !"]
+    };
+
+    // Catégories spécifiques pour les funny replies
+    const funnyCategories = {
+      'avis': [
+        "Je trouve que Léonard de Vinci, en tant qu'inventeur, c'est surcôté. Il n'aurait jamais eu le prix Nobel",
+        "Le groupe de musique Nickelback c'est bien en vrai",
+        "Les gens qui se battent contre l'écriture inclusive c'est vraiment ringard.",
+        "La série Les Anneaux du Pouvoir c'est vraiment, mais vraiment, nul.",
+        "Je n'aime pas les brunchs en restaurant, c'est trop cher pour ce que c'est.",
+        "Toulouse est une très jolie ville.",
+        "Les pommes de terre grenailles sont les meilleures.",
+        "Nutella banane c'est incroyable.",
+        "Friends est une bonne série",
+        "C'est pas fou les concerts au stade de France. La sonorité est très mauvaise.",
+        "Berlin c'est cool.",
+        "Si tout le monde prenait du LSD, il y aurait moins de guerre dans le monde."
+      ],
+      
+      'histoire': [
+        "Le président américain Calvin Coolidge avait un raton laveur apprivoisé nommé Rebecca qui vivait à la Maison Blanche et se promenait en laisse comme un chien.",
+        "Les anciens Égyptiens utilisaient des crottes de crocodile comme contraceptif, les insérant dans le vagin en espérant que l'acidité bloquerait la conception.",
+        "Napoléon Bonaparte a été attaqué par une horde de lapins lors d'une chasse organisée en son honneur. Des centaines de lapins domestiques ont été lâchés mais au lieu de fuir, ils ont chargé l'empereur.",
+        "Au Moyen Âge, les procès d'animaux étaient courants. Des cochons, des rats et même des insectes étaient jugés devant un tribunal pour leurs 'crimes', avec avocat de la défense et tout.",
+        "Le président Andrew Jackson a organisé une énorme fête à la Maison Blanche avec un fromage de 635 kg. Il a invité tout le monde à venir en manger, et l'odeur est restée pendant des mois.",
+        "Les gladiateurs romains faisaient la publicité pour des produits, exactement comme les athlètes modernes. On a retrouvé des graffitis avec des endorsements de gladiateurs célèbres.",
+        "Le philtre d'amour préféré de Cléopâtre était fait de perles dissoutes dans du vinaigre. Elle aurait dissous une perle valant des millions dans son verre pour impressionner Marc Antoine.",
+        "Les dentiers de George Washington n'étaient pas en bois mais faits de dents humaines, de dents d'hippopotame, d'ivoire et de plomb. Certainement pas confortables.",
+        "Dans la Rome antique, l'urine était utilisée comme produit de blanchiment pour les dents et le linge. Elle était tellement prisée qu'elle était taxée par l'empereur Vespasien.",
+        "Le roi Henri III de France se déplaçait partout avec un panier rempli de petits chiens qu'il portait autour du cou et les habillait avec des vêtements miniatures coûteux."
+      ],
+      
+      'encouragement': [
+        "Tu es une personne unique et irremplaçable",
+        "Tu es géniale exactement comme tu es",
+        "Ta présence illumine la vie de ceux qui t'entourent",
+        "Tu as une force incroyable en toi",
+        "Tu mérites toutes les belles choses qui t'arrivent",
+        "Tes efforts ne passent pas inaperçus, tu fais du super boulot",
+        "Tu as le pouvoir de transformer tes rêves en réalité",
+        "Le monde est meilleur avec toi dedans",
+        "Tu es plus courageuse que tu ne le crois",
+        "Ta gentillesse fait une vraie différence autour de toi"
+      ],
+      
+      'réaliste': [
+        "Tu n'as rien d'exceptionnel mais c'est pas grave, la plupart des gens non plus",
+        "Tes problèmes ne sont pas uniques, des millions de personnes vivent la même chose",
+        "Tu seras oublié rapidement après ta mort et c'est normal",
+        "Personne ne remarquera vraiment si tu rates cette journée",
+        "Tes choix n'ont probablement pas autant d'impact que tu le penses",
+        "Tu es statistiquement moyen dans presque tout et c'est acceptable",
+        "La plupart de tes efforts passeront inaperçus mais continue quand même",
+        "Tu ne changeras probablement pas le monde mais tu peux améliorer ton petit coin",
+        "Tes insécurités sont banales, tout le monde en a des similaires",
+        "Tu n'es pas le héros de l'histoire de tout le monde, juste de la tienne",
+        "Tes erreurs d'hier sont déjà oubliées par les autres, seul toi y penses encore",
+        "Tu ne seras jamais prêt à 100%, il faut avancer quand même",
+        "Personne n'a vraiment tout compris, on fait tous semblant un peu",
+        "Tes parents ont aussi improvisé en t'élevant, ils ne savaient pas tout",
+        "Tu vieillis chaque jour et c'est irréversible, autant l'accepter maintenant"
+      ],
+      
+      'moi': [
+        "Je porte plusieurs fois les mêmes chaussettes d'affilée",
+        "Mon film préféré c'est Kung Fu Panda",
+        "Je ne peux plus boire de Tequila depuis ma première année d'étude.",
+        "J'ai commencé la guitare pendant le 1er confinement.",
+        "Quand j'étais petit, je voulais être paléontologue mais après on m'a dit qu'il fallait beaucoup travailler à l'école ducoup je suis devenu fonctionnaire.",
+        "Je sais très mal danser les danses de couple.",
+        "Je n'aime pas les fascistes.",
+        "Je n'aime pas aller au cinéma.",
+        "Je suis un grand fan de Hard Techno et de blues.",
+        "J'aime la mode gothique",
+        "J'aime beaucoup Edgar Allan Poe",
+        "Je n'ai jamais vécu en Angleterre malgré ma double nationalité."
+      ]
+    };
+
+    // Liste de gros mots à détecter
+    const grosMots = ['merde', 'putain', 'con', 'connard', 'salope', 'pute', 'chier', 'bordel', 'enculé', 'bite', 'couille', 'fuck'];
+
+    // Funny replies généralistes qui proposent des options
+    const funnyReplies = [
+      "J'ai rien compris mais... Je peux éventuellement te donner mon avis sur quelque chose d'aléatoire ? Écris *Avis*.",
+      "J'ai rien compris mais... Je peux te raconter une anecdote historique totalement inutile. Écris *Histoire*.",
+      "J'ai rien compris mais... Je peux t'envoyer soit un message encourageant soit un message réaliste. Écris *Encouragement* ou *Réaliste*.",
+      "J'ai rien compris mais... Je peux te donner une information aléatoire sur Chris. Écris *Moi*."
+    ];
+
+    // Fonction pour faire défiler automatiquement vers le bas
+    function scrollToBottom() {
+      const messages = document.getElementById('messages');
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Afficher le message de bienvenue au chargement
+    window.addEventListener('DOMContentLoaded', function() {
+      addMessage(selectionMessage, 'bot');
+    });
+
+    function sendMessage() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage(text, 'user');
+      input.value = '';
+      
+      // Petit délai pour la réponse du bot
+      setTimeout(() => {
+        respond(text.toLowerCase());
+      }, 300);
+    }
+
+    function respond(text) {
+      let response = null;
+
+      // Vérifier les gros mots en premier
+      const containsGrosMot = grosMots.some(mot => text.includes(mot));
+      if (containsGrosMot) {
+        response = "Je suis choqué de ton langage... 😱";
+        addMessage(response, 'bot');
+        return;
+      }
+
+      // Vérifier si c'est un merci
+      if (text.includes('merci')) {
+        response = "Pas de problème !";
+        addMessage(response, 'bot');
+        return;
+      }
+
+      // Vérifier les questions typiques
+      for (let key in questionsTypiques) {
+        if (text.includes(key)) {
+          const options = questionsTypiques[key];
+          response = options[Math.floor(Math.random() * options.length)];
+          addMessage(response, 'bot');
+          return;
+        }
+      }
+
+      // Vérifier si la réponse info fixe existe
+      for (let key in infoResponses) {
+        if (text.includes(key)) {
+          lastBotCategory = null;
+          response = infoResponses[key];
+          break;
+        }
+      }
+
+      // Si pas de réponse fixe, vérifier si l'utilisateur appelle une catégorie drôle
+      if (!response) {
+        for (let category in funnyCategories) {
+          if (text.includes(category)) {
+            lastBotCategory = category;
+            const options = funnyCategories[category];
+            response = options[Math.floor(Math.random() * options.length)];
+            break;
+          }
+        }
+      }
+
+      // Si toujours rien : réponse drôle générale + mémorisation
+      if (!response) {
+        lastBotCategory = 'generalFunny';
+        response = funnyReplies[Math.floor(Math.random() * funnyReplies.length)];
+      }
+
+      addMessage(response, 'bot');
+    }
+
+    function addMessage(text, sender) {
+      const messages = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'message ' + sender;
+      
+      if (sender === 'bot') {
+        const img = document.createElement('img');
+        img.src = 'https://raw.githubusercontent.com/ILikeNickelback/ChrisBot/blob/main/IMG_20260103_145641.jpg'
+        div.appendChild(img);
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = text;
+        div.appendChild(textSpan);
+      } else {
+        div.textContent = text;
+      }
+      
+      messages.appendChild(div);
+      
+      // Défilement automatique vers le bas
+      scrollToBottom();
+    }
+
+    // Permettre l'envoi avec la touche Entrée
+    document.getElementById('userInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
